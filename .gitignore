@@ -1,0 +1,15 @@
+# 大文件 / 不提交的产物（见 AGENTS.md 约定）
+models/
+data/
+reports/
+third_party/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# IDE / 工具
+.idea/
+.claude/
+.DS_Store
