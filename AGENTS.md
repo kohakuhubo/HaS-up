@@ -18,8 +18,8 @@
 
 - `docs/HaS训练原理与步骤.md` — 训练原理与完整流程文档
 - `scripts/has_format.py` — prompt/completion 格式定义（单一事实来源）
-- `scripts/gen_dataset.py` — CURP 合成数据生成器（含官方校验位算法，字符表含 Ñ）
-- `scripts/train_lora.py` — LoRA SFT（completion-only loss，MPS/CUDA/CPU）
+- `scripts/gen_dataset.py` — CURP 合成数据生成器（含官方校验位算法，字符表含 Ñ；含 context_trap 反例：校验位合法串出现在 ORDER_NO 等上下文 → 期望空）
+- `scripts/train_lora.py` — LoRA SFT（completion-only loss，MPS/CUDA/CPU；`--cpu-threads` 限 CPU 线程降温，建议配合 `nice -n 19` 运行）
 - `scripts/evaluate.py` — 经 llama-server 评估：JSON 合法率/完全匹配/实体 P·R·F1/别名一致性
 - `scripts/export_gguf.sh` — HF→GGUF→Q8_0（自动浅克隆 llama.cpp 到 `third_party/`）
 - `scripts/run_server.sh` — 启动微调后模型

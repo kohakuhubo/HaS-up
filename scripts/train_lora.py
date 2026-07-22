@@ -112,10 +112,17 @@ def main() -> None:
     ap.add_argument("--lora-r", type=int, default=16)
     ap.add_argument("--lora-alpha", type=int, default=32)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument(
+        "--cpu-threads", type=int, default=4,
+        help="PyTorch CPU 线程数上限（算力主力是 MPS/GPU，压低 CPU 线程可降温）",
+    )
     args = ap.parse_args()
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
+    # 限制 CPU 线程数：计算大头在 MPS/GPU，CPU 只做调度/数据处理，
+    # 压低线程数可显著降低 CPU 占用与发热（默认值见 --cpu-threads）
+    torch.set_num_threads(max(1, args.cpu_threads))
 
     if torch.backends.mps.is_available():
         device = "mps"

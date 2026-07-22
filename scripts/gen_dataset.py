@@ -317,6 +317,27 @@ DISTRACTOR_TEMPLATES = [
     "Control escolar: alumno {name}, credencial INE del tutor {ine}, contacto {email}.",
 ]
 
+# 上下文陷阱：{trap} 是校验位合法的 CURP 格式串，但上下文明确是订单号/运单号等，
+# 请求 curp 时必须返回空 —— 教模型结合上下文判断，而非只看串的模式
+CONTEXT_TRAP_TEMPLATES = [
+    '{{"ORDER_NO": "{trap}", "customer": "{name}", "phone": "{phone}"}}',
+    "ORDER_NO: {trap} | customer {name} | tel {phone}",
+    "Numero de pedido {trap}, cliente {name}, contacto {email}.",
+    "Tracking number {trap} for the shipment to {address}.",
+    "Folio de pago: {trap}. Titular de la cuenta: {name}.",
+    "SKU-REF {trap} / supplier contact {email}.",
+    "Guia de rastreo {trap}, destinatario {name}, telefono {phone}.",
+    "订单号 {trap}，收件人{name}，联系电话{phone}。",
+]
+
+# 陷阱与真 CURP 同现：只有明确标注为 CURP 的那条应被抽出
+CONTEXT_TRAP_BOTH_TEMPLATES = [
+    'Cliente {name}, {curp_kw} {curp}. ORDER_NO: {trap}.',
+    '{{"name": "{name}", "{curp_kw}": "{curp}", "ORDER_NO": "{trap}"}}',
+    "Pedido {trap} registrado para {name} ({curp_kw} {curp}), tel {phone}.",
+    "运单号 {trap}；客户{name}的{curp_kw}为{curp}。",
+]
+
 
 # ---------------------------------------------------------------------------
 # 样本构造
@@ -424,6 +445,34 @@ def make_distractor_example(rng: random.Random) -> dict:
     return {"text": text, "types": req, "expected": expected, "meta": {"scenario": "distractor"}}
 
 
+def make_context_trap_example(rng: random.Random) -> dict:
+    """校验位合法的 CURP 格式串出现在订单号/运单号等上下文 → 请求 curp 必须为空。
+
+    一半概率与真 CURP 同现：只有被上下文标注为 CURP 的那条应被抽出。
+    """
+    p = gen_person(rng)
+    b = _person_bundle(p, rng)
+    b["trap"] = make_curp(gen_person(rng), rng)  # 另一个人 → 必与 b["curp"] 不同
+
+    both = rng.random() < 0.5
+    text = rng.choice(CONTEXT_TRAP_BOTH_TEMPLATES if both else CONTEXT_TRAP_TEMPLATES).format(**b)
+
+    entities: dict[str, list[str]] = {}
+    if both:
+        entities["curp"] = [b["curp"]]
+    if "{name}" in text:
+        entities["person name"] = [b["name"]]
+    for field, canon in (("phone", "phone number"), ("email", "email"),
+                         ("address", "address")):
+        if b[field] in text:
+            entities[canon] = [b[field]]
+
+    req = [rng.choice(TYPE_ALIASES["curp"])]
+    expected = {req[0]: resolve_requested_type(req[0], entities)}
+    return {"text": text, "types": req, "expected": expected,
+            "meta": {"scenario": "context_trap"}}
+
+
 def make_consistency_group(rng: random.Random, gid: int) -> list[dict]:
     """同一文本用多个别名请求，评估别名一致性。"""
     p = gen_person(rng)
@@ -444,9 +493,9 @@ def make_consistency_group(rng: random.Random, gid: int) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def build_dataset(n: int, rng: random.Random, templates: list[str], eval_mode: bool,
-                  mix: tuple[float, float, float]) -> list[dict]:
-    """mix = (curp样本比例, 通用样本比例, 干扰证件样本比例)"""
-    p_curp, p_generic, p_distractor = mix
+                  mix: tuple[float, float, float, float]) -> list[dict]:
+    """mix = (curp样本, 通用样本, 干扰证件样本, 上下文陷阱样本) 的比例"""
+    p_curp, p_generic, p_distractor, p_trap = mix
     data = []
     for _ in range(n):
         r = rng.random()
@@ -454,8 +503,10 @@ def build_dataset(n: int, rng: random.Random, templates: list[str], eval_mode: b
             data.append(make_curp_example(rng, templates, eval_mode))
         elif r < p_curp + p_generic:
             data.append(make_generic_example(rng))
-        else:
+        elif r < p_curp + p_generic + p_distractor:
             data.append(make_distractor_example(rng))
+        else:
+            data.append(make_context_trap_example(rng))
     return data
 
 
@@ -481,11 +532,11 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
 
     train = build_dataset(args.train_size, random.Random(args.seed), TRAIN_TEMPLATES,
-                          eval_mode=False, mix=(0.55, 0.28, 0.17))
+                          eval_mode=False, mix=(0.52, 0.26, 0.15, 0.07))
     valid = build_dataset(args.valid_size, random.Random(args.seed + 1), TRAIN_TEMPLATES,
-                          eval_mode=False, mix=(0.55, 0.28, 0.17))
+                          eval_mode=False, mix=(0.52, 0.26, 0.15, 0.07))
     eval_data = build_dataset(args.eval_size, random.Random(args.seed + 2), EVAL_TEMPLATES,
-                              eval_mode=True, mix=(0.60, 0.20, 0.20))
+                              eval_mode=True, mix=(0.55, 0.18, 0.17, 0.10))
     # 追加别名一致性分组样本（评估专用）
     rng = random.Random(args.seed + 3)
     for gid in range(25):

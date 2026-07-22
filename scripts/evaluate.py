@@ -5,7 +5,7 @@
   1. JSON 合法率    —— 输出能否解析为 JSON（格式遵循度）
   2. 完全匹配率     —— 整个 JSON 与期望完全一致（key 集合 + 值列表）
   3. 实体级 P/R/F1  —— 按 (type, value) 计数，micro 平均
-  4. 分场景指标     —— curp(评估模板) / generic(防遗忘回归) / distractor(反例)
+  4. 分场景指标     —— curp(评估模板) / generic(防遗忘回归) / distractor(干扰证件) / context_trap(上下文陷阱)
   5. 别名一致性     —— 同一文本用 curp / id number / mx_curp 请求，结果是否一致
 
 用法：
