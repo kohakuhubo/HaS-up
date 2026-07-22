@@ -24,6 +24,7 @@
 - `scripts/export_gguf.sh` — HF→GGUF→Q8_0（自动浅克隆 llama.cpp 到 `third_party/`）
 - `scripts/run_server.sh` — 启动微调后模型
 - `data/`、`models/`、`reports/` — 数据、权重、评估报告（均不提交 git）
+- `dist/` — 大文件分割提交区（绕开 GitHub 100MB 限制）：`dist/has-curp-q8_0/` 内含 90MB 分块 + `reassemble.sh` 拼合校验脚本
 
 ## 约定
 

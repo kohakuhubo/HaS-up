@@ -1,0 +1,1 @@
+4d28a0036931541c5dbd7f82301baacda86ccc3aae83ece087243d40007b584a  has-curp-q8_0.gguf
